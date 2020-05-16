@@ -1,0 +1,5 @@
+# Bazel artifacts.
+bazel-*
+
+# Vim swapfiles.
+**/*.swp

@@ -1,0 +1,132 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+cflags = [
+    "-O3",
+    "-fomit-frame-pointer",
+    "-funroll-all-loops",
+    "-finline-functions",
+    "-ffast-math",
+]
+
+cppflags = [
+    "-DOPT_MULTI",
+    "-DOPT_X86_64",
+    "-DOPT_GENERIC",
+    "-DOPT_GENERIC_DITHER",
+    "-DREAL_IS_FLOAT",
+    "-DOPT_AVX",
+]
+
+copts = cflags + cppflags
+
+cc_library(
+    name = "headers",
+    hdrs = glob(["mpg123/*"]),
+    copts = copts,
+    includes = ["mpg123/"],
+)
+
+cc_library(
+    name = "common",
+    hdrs = [
+        "src/intsym.h",
+    ],
+    copts = copts,
+    includes = ["src/"],
+)
+
+cc_library(
+    name = "compat",
+    hdrs = [
+        "src/compat/compat.h",
+    ],
+    copts = copts,
+    includes = ["src/compat/"],
+)
+
+# Target for the libmpg123.so shared object.
+cc_binary(
+    name = "libmpg123.so",
+    srcs = [
+        "src/libmpg123/abi_align.h",
+        "src/libmpg123/debug.h",
+        "src/libmpg123/decode.h",
+        "src/libmpg123/dither.h",
+        "src/libmpg123/fmt123.h",
+        "src/libmpg123/frame.h",
+        "src/libmpg123/gapless.h",
+        "src/libmpg123/icy.h",
+        "src/libmpg123/icy2utf8.h",
+        "src/libmpg123/id3.h",
+        "src/libmpg123/index.h",
+        "src/libmpg123/libmpg123.c",
+        "src/libmpg123/mpg123lib_intern.h",
+        "src/libmpg123/optimize.h",
+        "src/libmpg123/parse.h",
+        "src/libmpg123/reader.h",
+        "src/libmpg123/sample.h",
+        "src/libmpg123/synths.h",
+        "src/libmpg123/true.h",
+    ],
+    copts = copts,
+    includes = ["src/libmpg123/"],
+    linkshared = True,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common",
+        ":compat",
+        ":headers",
+    ],
+)
+
+# Target used to link dynamically against libmpg123.so.
+cc_library(
+    name = "libmpg123",
+    srcs = [
+        ":libmpg123.so",
+    ],
+    hdrs = [
+        "mpg123/mpg123.h",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# These are the arguments passed to ./configure to cppflags[] and cflags[].  The values of cppflags
+# and cflags are hardcoded since we'd like to be able to build this library in Bazel without
+# requiring the invocation of the the whole autoconf/automake toolchain.  To keep these values
+# in-sync with the in-tree versions, we provide a configure_artifacts() genrule here that can be
+# used to regenerate the Makefile (and prebuilt config.h) used to manually regenerate these values.
+
+configure_opts = [
+    "--enable-modules=no",
+    "--enable-ipv6=no",
+    "--enable-network=no",
+    "--enable-ntom=no",
+    "--enable-downsample=no",
+    "--enable-equalizer=no",
+    "--with-cpu=x86-64",
+    "--with-audio=dummy",
+    "--with-optimization=3",
+]
+
+# Generate the config.h and Makefile, for reference.
+genrule(
+    name = "configure_artifacts",
+    srcs = [
+        "configure.ac",
+        "COPYING",
+        "NEWS",
+        "README",
+        "AUTHORS",
+        "ChangeLog",
+    ] + glob([
+        "**/*.am",
+        "**/*.in",
+    ]),
+    outs = [
+        "config.h",
+        "Makefile",
+    ],
+    cmd = "autoreconf -i && ./configure " + " ".join(configure_opts) +
+          " && cp src/config.h Makefile $(RULEDIR)",
+)
