@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
-cflags = [
+copts = [
     "-O3",
     "-fomit-frame-pointer",
     "-funroll-all-loops",
@@ -8,75 +8,146 @@ cflags = [
     "-ffast-math",
 ]
 
-cppflags = [
-    "-DOPT_MULTI",
-    "-DOPT_X86_64",
-    "-DOPT_GENERIC",
-    "-DOPT_GENERIC_DITHER",
-    "-DREAL_IS_FLOAT",
-    "-DOPT_AVX",
+defines = [
+    "OPT_MULTI",
+    "OPT_GENERIC",
+    "OPT_GENERIC_DITHER",
+    "REAL_IS_FLOAT",
 ]
-
-copts = cflags + cppflags
-
-cc_library(
-    name = "headers",
-    hdrs = glob(["mpg123/*"]),
-    copts = copts,
-    includes = ["mpg123/"],
-)
 
 cc_library(
     name = "common",
     hdrs = [
+        "mpg123/config.h",
         "src/intsym.h",
+        "src/libmpg123/mangle.h",
+        "src/libmpg123/synth_stereo_avx.S",
     ],
-    copts = copts,
-    includes = ["src/"],
+    defines = defines,
+    includes = [
+        "mpg123/",
+        "src/",
+        "src/libmpg123/",
+    ],
+)
+
+# Platform-specific support.
+
+config_setting(
+    name = "x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 cc_library(
-    name = "compat",
-    hdrs = [
-        "src/compat/compat.h",
+    name = "x86_64_asm",
+    srcs = [
+        "src/libmpg123/dct36_avx.S",
+        "src/libmpg123/dct36_x86_64.S",
+        "src/libmpg123/dct64_avx.S",
+        "src/libmpg123/dct64_avx_float.S",
+        "src/libmpg123/dct64_x86_64.S",
+        "src/libmpg123/dct64_x86_64_float.S",
+        "src/libmpg123/getcpuflags_x86_64.S",
+        "src/libmpg123/synth_stereo_avx.S",
+        "src/libmpg123/synth_stereo_avx_accurate.S",
+        "src/libmpg123/synth_stereo_avx_float.S",
+        "src/libmpg123/synth_stereo_avx_s32.S",
+        "src/libmpg123/synth_stereo_x86_64.S",
+        "src/libmpg123/synth_stereo_x86_64_accurate.S",
+        "src/libmpg123/synth_stereo_x86_64_float.S",
+        "src/libmpg123/synth_stereo_x86_64_s32.S",
+        "src/libmpg123/synth_x86_64.S",
+        "src/libmpg123/synth_x86_64_accurate.S",
+        "src/libmpg123/synth_x86_64_float.S",
+        "src/libmpg123/synth_x86_64_s32.S",
     ],
     copts = copts,
-    includes = ["src/compat/"],
+    defines = defines + [
+        "OPT_X86_64",
+        "OPT_AVX",
+    ],
+    deps = [
+        ":common",
+    ],
 )
 
 # Target for the libmpg123.so shared object.
 cc_binary(
     name = "libmpg123.so",
     srcs = [
+        "mpg123/mpg123.h",
+        "src/compat/compat.c",
+        "src/compat/compat.h",
+        "src/compat/compat_str.c",
+        "src/compat/wpathconv.h",
         "src/libmpg123/abi_align.h",
+        "src/libmpg123/dct64.c",
         "src/libmpg123/debug.h",
         "src/libmpg123/decode.h",
+        "src/libmpg123/dither.c",
         "src/libmpg123/dither.h",
+        "src/libmpg123/dither_impl.h",
         "src/libmpg123/fmt123.h",
+        "src/libmpg123/format.c",
+        "src/libmpg123/frame.c",
         "src/libmpg123/frame.h",
         "src/libmpg123/gapless.h",
+        "src/libmpg123/getbits.h",
+        "src/libmpg123/getcpuflags.h",
+        "src/libmpg123/icy.c",
         "src/libmpg123/icy.h",
+        "src/libmpg123/icy2utf8.c",
         "src/libmpg123/icy2utf8.h",
+        "src/libmpg123/id3.c",
         "src/libmpg123/id3.h",
+        "src/libmpg123/index.c",
         "src/libmpg123/index.h",
+        "src/libmpg123/l2tables.h",
+        "src/libmpg123/layer1.c",
+        "src/libmpg123/layer2.c",
+        "src/libmpg123/layer3.c",
         "src/libmpg123/libmpg123.c",
+        "src/libmpg123/mpeghead.h",
         "src/libmpg123/mpg123lib_intern.h",
+        "src/libmpg123/newhuffman.h",
+        "src/libmpg123/optimize.c",
         "src/libmpg123/optimize.h",
+        "src/libmpg123/parse.c",
         "src/libmpg123/parse.h",
         "src/libmpg123/reader.h",
+        "src/libmpg123/readers.c",
         "src/libmpg123/sample.h",
+        "src/libmpg123/stringbuf.c",
+        "src/libmpg123/swap_bytes_impl.h",
+        "src/libmpg123/synth.c",
+        "src/libmpg123/synth.h",
+        "src/libmpg123/synth_8bit.c",
+        "src/libmpg123/synth_8bit.h",
+        "src/libmpg123/synth_mono.h",
+        "src/libmpg123/synth_real.c",
+        "src/libmpg123/synth_s32.c",
         "src/libmpg123/synths.h",
+        "src/libmpg123/tabinit.c",
         "src/libmpg123/true.h",
     ],
     copts = copts,
-    includes = ["src/libmpg123/"],
+    defines = defines,
+    includes = [
+        "mpg123/",
+        "src/",
+        "src/compat/",
+        "src/libmpg123/",
+    ],
     linkshared = True,
     visibility = ["//visibility:public"],
     deps = [
         ":common",
-        ":compat",
-        ":headers",
-    ],
+    ] + select({
+        ":x86_64": [":x86_64_asm"],
+        "//conditions:default": [],
+    }),
 )
 
 # Target used to link dynamically against libmpg123.so.
@@ -87,15 +158,18 @@ cc_library(
     ],
     hdrs = [
         "mpg123/mpg123.h",
+        "src/libmpg123/fmt123.h",
     ],
+    includes = ["src/libmpg123/"],
     visibility = ["//visibility:public"],
 )
 
-# These are the arguments passed to ./configure to cppflags[] and cflags[].  The values of cppflags
-# and cflags are hardcoded since we'd like to be able to build this library in Bazel without
-# requiring the invocation of the the whole autoconf/automake toolchain.  To keep these values
-# in-sync with the in-tree versions, we provide a configure_artifacts() genrule here that can be
-# used to regenerate the Makefile (and prebuilt config.h) used to manually regenerate these values.
+# These are the arguments passed to ./configure to set up copts[] and defines[].  The values for
+# copts[] and defines[] are hardcoded since we'd like to be able to build this library in Bazel
+# without requiring the invocation of the the whole (nondeterministic) autoconf/automake toolchain.
+# To keep these values in-sync with the in-tree versions, we provide a configure_artifacts() genrule
+# here that can be used to regenerate the Makefile (and prebuilt config.h).  copts[] and defines[]
+# can then be updated from these artifacts.
 
 configure_opts = [
     "--enable-modules=no",
