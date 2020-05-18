@@ -1,6 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 copts = [
+    "-Wall",
+    "-Wno-ignored-optimization-argument",
     "-O3",
     "-fomit-frame-pointer",
     "-funroll-all-loops",
