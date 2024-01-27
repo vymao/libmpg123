@@ -17,6 +17,48 @@ defines = [
     "REAL_IS_FLOAT",
 ]
 
+# These are the arguments passed to ./configure to set up copts[] and defines[].  The values for
+# copts[] and defines[] are hardcoded since we'd like to be able to build this library in Bazel
+# without requiring the invocation of the the whole (nondeterministic) autoconf/automake toolchain.
+# To keep these values in-sync with the in-tree versions, we provide a configure_artifacts() genrule
+# here that can be used to regenerate the Makefile (and prebuilt config.h).  copts[] and defines[]
+# can then be updated from these artifacts.
+
+configure_opts = [
+    "--enable-modules=no",
+    "--enable-ipv6=no",
+    "--enable-network=no",
+    "--enable-ntom=no",
+    "--enable-downsample=no",
+    "--enable-equalizer=no",
+    "--with-cpu=x86-64",
+    "--with-audio=dummy",
+    "--with-optimization=3",
+]
+
+# Generate the config.h and Makefile, for reference.
+genrule(
+    name = "configure_artifacts",
+    srcs = [
+        "configure.ac",
+        "COPYING",
+        "NEWS",
+        "README",
+        "AUTHORS",
+        "ChangeLog",
+    ] + glob([
+        "**/*.am",
+        "**/*.in",
+    ]),
+    outs = [
+        "config.h",
+        "Makefile",
+    ],
+    cmd = "autoreconf -i && ./configure " + " ".join(configure_opts) +
+          " && cp src/config.h Makefile $(RULEDIR)"
+    })
+)
+
 cc_library(
     name = "common",
     hdrs = [
@@ -164,49 +206,4 @@ cc_library(
     ],
     includes = ["src/libmpg123/"],
     visibility = ["//visibility:public"],
-)
-
-# These are the arguments passed to ./configure to set up copts[] and defines[].  The values for
-# copts[] and defines[] are hardcoded since we'd like to be able to build this library in Bazel
-# without requiring the invocation of the the whole (nondeterministic) autoconf/automake toolchain.
-# To keep these values in-sync with the in-tree versions, we provide a configure_artifacts() genrule
-# here that can be used to regenerate the Makefile (and prebuilt config.h).  copts[] and defines[]
-# can then be updated from these artifacts.
-
-configure_opts = [
-    "--enable-modules=no",
-    "--enable-ipv6=no",
-    "--enable-network=no",
-    "--enable-ntom=no",
-    "--enable-downsample=no",
-    "--enable-equalizer=no",
-    "--with-cpu=x86-64",
-    "--with-audio=dummy",
-    "--with-optimization=3",
-]
-
-# Generate the config.h and Makefile, for reference.
-genrule(
-    name = "configure_artifacts",
-    srcs = [
-        "configure.ac",
-        "COPYING",
-        "NEWS",
-        "README",
-        "AUTHORS",
-        "ChangeLog",
-    ] + glob([
-        "**/*.am",
-        "**/*.in",
-    ]),
-    outs = [
-        "config.h",
-        "Makefile",
-    ],
-    cmd = select({
-        "@bazel_tools//src/conditions:darwin": "autoreconf -iv ; " + 
-            "do_configure --disable-modules --with-cpu=generic_fpu ; make install",
-        "//conditions:default": "autoreconf -i && ./configure " + " ".join(configure_opts) +
-          " && cp src/config.h Makefile $(RULEDIR)",
-    })
 )
