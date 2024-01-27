@@ -203,6 +203,10 @@ genrule(
         "config.h",
         "Makefile",
     ],
-    cmd = "autoreconf -i && ./configure " + " ".join(configure_opts) +
+    cmd = select({
+        "@bazel_tools//src/conditions:darwin": "autoreconf -iv ; " + 
+            "do_configure --disable-modules --with-cpu=generic_fpu ; make install",
+        "//conditions:default": "autoreconf -i && ./configure " + " ".join(configure_opts) +
           " && cp src/config.h Makefile $(RULEDIR)",
+    })
 )
